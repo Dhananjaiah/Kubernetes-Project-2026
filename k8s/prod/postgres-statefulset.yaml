@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: ecommerce-prod
+data:
+  POSTGRES_DB: ecommerce
+  POSTGRES_USER: postgres
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: ecommerce-prod
+type: Opaque
+data:
+  # Change this in production! (base64 encoded strong password)
+  POSTGRES_PASSWORD: cG9zdGdyZXM=
+  DB_PASSWORD: cG9zdGdyZXM=
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-script
+  namespace: ecommerce-prod
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        price DECIMAL(10, 2) NOT NULL,
+        stock INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+    CREATE INDEX IF NOT EXISTS idx_products_price ON products(price);
+    INSERT INTO products (name, description, price, stock) VALUES
+        ('Laptop Pro', 'High-performance laptop for professionals', 1299.99, 15),
+        ('Wireless Mouse', 'Ergonomic wireless mouse with precision tracking', 29.99, 50),
+        ('Mechanical Keyboard', 'RGB mechanical keyboard with cherry switches', 149.99, 30),
+        ('USB-C Hub', '7-in-1 USB-C hub with HDMI and ethernet', 49.99, 40),
+        ('Webcam HD', '1080p HD webcam with auto-focus', 79.99, 25),
+        ('Monitor 27"', '4K IPS monitor with HDR support', 399.99, 20)
+    ON CONFLICT DO NOTHING;
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: ecommerce-prod
+  labels:
+    app: postgres
+    tier: database
+spec:
+  serviceName: postgres-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        tier: database
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+          name: postgres
+        envFrom:
+        - configMapRef:
+            name: postgres-config
+        - secretRef:
+            name: postgres-secret
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: init-script
+        configMap:
+          name: postgres-init-script
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: ecommerce-prod
+  labels:
+    app: postgres
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    app: postgres

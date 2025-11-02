@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-metrics
+  namespace: ecommerce-prod
+  labels:
+    app: backend
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 5000
+    targetPort: 5000
+  selector:
+    app: backend
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-monitor
+  namespace: ecommerce-prod
+  labels:
+    app: backend
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  endpoints:
+  - port: metrics
+    path: /health
+    interval: 30s
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-metrics
+  namespace: ecommerce-prod
+  labels:
+    app: frontend
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 3000
+    targetPort: 3000
+  selector:
+    app: frontend
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: frontend-monitor
+  namespace: ecommerce-prod
+  labels:
+    app: frontend
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  endpoints:
+  - port: metrics
+    path: /health
+    interval: 30s
