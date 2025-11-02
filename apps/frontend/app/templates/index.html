@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>E-Commerce Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>🛒 E-Commerce Microservices Platform</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="#products">Products</a>
+            <a href="#orders">Orders</a>
+        </nav>
+    </header>
+    
+    <main>
+        <div class="status {{ status_class }}">
+            <strong>Environment:</strong> {{ environment }}<br>
+            <strong>Backend Status:</strong> {{ backend_status }}
+        </div>
+        
+        <section id="products">
+            <h2>Available Products</h2>
+            <div class="products-grid">
+                {% for product in products %}
+                <div class="product-card">
+                    <h3>{{ product.name }}</h3>
+                    <p class="description">{{ product.description }}</p>
+                    <p class="price">${{ "%.2f"|format(product.price) }}</p>
+                    <p class="stock">
+                        {% if product.stock > 0 %}
+                            <span class="in-stock">✓ In Stock ({{ product.stock }})</span>
+                        {% else %}
+                            <span class="out-of-stock">✗ Out of Stock</span>
+                        {% endif %}
+                    </p>
+                    <button class="btn-primary" onclick="addToCart({{ product.id }})">Add to Cart</button>
+                </div>
+                {% else %}
+                <p class="no-products">No products available at the moment.</p>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+    
+    <footer>
+        <p>Production-Grade Microservices Architecture Demo</p>
+        <p>Backend API | Auth Service | Order Service | Inventory Service</p>
+    </footer>
+    
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

@@ -5,10 +5,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
 COPY app/ ./app/
 COPY wsgi.py .
 
-EXPOSE 3000
+EXPOSE 5004
 
-CMD ["gunicorn", "--bind", "0.0.0.0:3000", "--workers", "2", "--timeout", "60", "wsgi:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5004", "--workers", "4", "--timeout", "60", "wsgi:app"]
