@@ -27,14 +27,21 @@ A production-ready, cloud-native microservices application demonstrating Kuberne
 
 ## 🎯 Overview
 
-This project demonstrates a **complete production-grade Kubernetes deployment** for a microservices-based e-commerce application. It showcases:
+This project demonstrates a **complete production-grade Kubernetes deployment** for a microservices-based e-commerce application with proper separation of concerns and real-world architecture patterns. It showcases:
 
-- **Microservices Architecture**: Frontend, Backend API, and PostgreSQL Database
+- **True Microservices Architecture**: 
+  - Product Service (catalog management)
+  - Auth Service (JWT authentication)
+  - Order Service (order processing)
+  - Inventory Service (stock management)
+  - API Gateway (centralized routing)
+  - Frontend Service (user interface)
+- **Production-Grade Code Structure**: Proper separation of routes, models, services, and config
 - **Multi-Environment Deployment**: Development (Minikube), Staging, and Production
 - **GitOps**: Automated deployment using ArgoCD
 - **Observability**: Monitoring with Prometheus and Grafana
 - **CI/CD**: Automated builds and deployments with GitHub Actions
-- **Security**: Network policies, RBAC, security contexts, and vulnerability scanning
+- **Security**: JWT authentication, network policies, RBAC, and secrets management
 - **High Availability**: HPA, pod anti-affinity, and rolling updates
 
 ## 🏗️ Architecture
@@ -42,23 +49,38 @@ This project demonstrates a **complete production-grade Kubernetes deployment** 
 ### Application Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     Ingress/Load Balancer               │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-        ┌─────────────┴──────────────┐
-        │                            │
-┌───────▼────────┐         ┌─────────▼────────┐
-│    Frontend    │────────▶│   Backend API    │
-│  (Python/Flask)│         │  (Python/Flask)  │
-│   Port: 3000   │         │   Port: 5000     │
-└────────────────┘         └─────────┬────────┘
-                                     │
-                           ┌─────────▼─────────┐
-                           │   PostgreSQL DB   │
-                           │   Port: 5432      │
-                           └───────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                   Ingress/Load Balancer                      │
+└────────────────────────┬─────────────────────────────────────┘
+                         │
+              ┌──────────▼──────────┐
+              │     Frontend        │
+              │  (Flask + HTML)     │
+              │    Port: 3000       │
+              └──────────┬──────────┘
+                         │
+              ┌──────────▼──────────┐
+              │   API Gateway       │
+              │  (Rate Limiting)    │
+              │    Port: 5004       │
+              └─┬───┬───┬───┬───────┘
+                │   │   │   │
+     ┌──────────┘   │   │   └──────────┐
+     │              │   │              │
+┌────▼─────┐  ┌────▼────┐  ┌─────▼────┐  ┌────▼─────┐
+│ Product  │  │  Auth   │  │  Order   │  │Inventory │
+│ Service  │  │ Service │  │ Service  │  │ Service  │
+│   5000   │  │  5001   │  │  5002    │  │  5003    │
+└────┬─────┘  └────┬────┘  └─────┬────┘  └────┬─────┘
+     └─────────────┴─────────────┴────────────┘
+                         │
+              ┌──────────▼──────────┐
+              │   PostgreSQL DB     │
+              │    Port: 5432       │
+              └─────────────────────┘
 ```
+
+**See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed documentation.**
 
 ### Deployment Progression
 
@@ -299,14 +321,50 @@ The project includes automated CI/CD:
 ```
 .
 ├── apps/                           # Microservices source code
-│   ├── frontend/                   # Frontend service (Flask)
-│   │   ├── app.py
+│   ├── backend/                    # Product Service (Port 5000)
+│   │   ├── app/
+│   │   │   ├── api/               # API routes
+│   │   │   ├── models/            # Data models
+│   │   │   ├── services/          # Business logic
+│   │   │   ├── middleware/        # Logging, errors
+│   │   │   └── config/            # Configuration
 │   │   ├── Dockerfile
-│   │   └── requirements.txt
-│   ├── backend/                    # Backend API service (Flask)
-│   │   ├── app.py
-│   │   ├── Dockerfile
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   └── wsgi.py
+│   ├── auth-service/               # Auth Service (Port 5001)
+│   │   ├── app/
+│   │   │   ├── api/               # Auth endpoints
+│   │   │   ├── models/            # User model
+│   │   │   ├── services/          # Auth logic + JWT
+│   │   │   └── config/
+│   │   └── ...
+│   ├── order-service/              # Order Service (Port 5002)
+│   │   ├── app/
+│   │   │   ├── api/               # Order endpoints
+│   │   │   ├── models/            # Order models
+│   │   │   ├── services/          # Order logic
+│   │   │   └── config/
+│   │   └── ...
+│   ├── inventory-service/          # Inventory Service (Port 5003)
+│   │   ├── app/
+│   │   │   ├── api/               # Inventory endpoints
+│   │   │   ├── models/            # Inventory model
+│   │   │   ├── services/          # Stock management
+│   │   │   └── config/
+│   │   └── ...
+│   ├── api-gateway/                # API Gateway (Port 5004)
+│   │   ├── app/
+│   │   │   ├── routes/            # Routing logic
+│   │   │   ├── middleware/        # Rate limiting, CORS
+│   │   │   └── config/
+│   │   └── ...
+│   ├── frontend/                   # Frontend UI (Port 3000)
+│   │   ├── app/
+│   │   │   ├── api/               # View routes
+│   │   │   ├── templates/         # HTML templates
+│   │   │   ├── static/            # CSS, JavaScript
+│   │   │   └── config/
+│   │   └── ...
 │   └── database/                   # Database initialization
 │       └── init.sql
 ├── k8s/                           # Kubernetes manifests
