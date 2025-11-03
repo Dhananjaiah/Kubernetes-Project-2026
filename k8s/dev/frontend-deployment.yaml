@@ -20,12 +20,18 @@ spec:
       containers:
       - name: frontend
         image: frontend:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000
-        envFrom:
-        - configMapRef:
-            name: frontend-config
+        env:
+        - name: FLASK_ENV
+          value: "development"
+        - name: ENVIRONMENT
+          value: "development"
+        - name: API_GATEWAY_URL
+          value: "http://api-gateway:5004"
+        - name: BACKEND_URL
+          value: "http://backend-service:5000"
         resources:
           requests:
             memory: "128Mi"

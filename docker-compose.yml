@@ -25,7 +25,7 @@ services:
     build:
       context: ./apps/backend
       dockerfile: Dockerfile
-    container_name: ecommerce-backend
+    container_name: product-service
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -46,18 +46,123 @@ services:
       timeout: 5s
       retries: 5
 
+  auth-service:
+    build:
+      context: ./apps/auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ecommerce
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      ENVIRONMENT: development
+      JWT_SECRET_KEY: dev-jwt-secret-key
+    ports:
+      - "5001:5001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-service:
+    build:
+      context: ./apps/order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ecommerce
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      ENVIRONMENT: development
+      PRODUCT_SERVICE_URL: http://backend:5000
+      INVENTORY_SERVICE_URL: http://inventory-service:5003
+    ports:
+      - "5002:5002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  inventory-service:
+    build:
+      context: ./apps/inventory-service
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ecommerce
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      ENVIRONMENT: development
+    ports:
+      - "5003:5003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: ./apps/api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    environment:
+      ENVIRONMENT: development
+      PRODUCT_SERVICE_URL: http://backend:5000
+      AUTH_SERVICE_URL: http://auth-service:5001
+      ORDER_SERVICE_URL: http://order-service:5002
+      INVENTORY_SERVICE_URL: http://inventory-service:5003
+    ports:
+      - "5004:5004"
+    depends_on:
+      - backend
+      - auth-service
+      - order-service
+      - inventory-service
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   frontend:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
     container_name: ecommerce-frontend
     environment:
+      API_GATEWAY_URL: http://api-gateway:5004
       BACKEND_URL: http://backend:5000
       ENVIRONMENT: development
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      - api-gateway
     networks:
       - ecommerce-network
     healthcheck:
