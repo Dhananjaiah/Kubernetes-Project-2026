@@ -45,11 +45,12 @@ class StagingConfig(Config):
 class ProductionConfig(Config):
     """Production configuration"""
     ENVIRONMENT = 'production'
-    SECRET_KEY = os.getenv('SECRET_KEY')
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     
-    if not SECRET_KEY or not JWT_SECRET_KEY:
-        raise ValueError("SECRET_KEY and JWT_SECRET_KEY must be set in production")
+    def __init__(self):
+        # In production, ensure SECRET_KEY and JWT_SECRET_KEY are set via environment variables
+        if not os.getenv('SECRET_KEY') or not os.getenv('JWT_SECRET_KEY'):
+            raise ValueError("SECRET_KEY and JWT_SECRET_KEY must be set in production")
+        super().__init__()
 
 
 config_by_name = {

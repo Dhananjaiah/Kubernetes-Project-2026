@@ -48,10 +48,12 @@ class StagingConfig(Config):
 class ProductionConfig(Config):
     """Production configuration"""
     ENVIRONMENT = 'production'
-    # In production, ensure SECRET_KEY is set via environment variable
-    SECRET_KEY = os.getenv('SECRET_KEY')
-    if not SECRET_KEY:
-        raise ValueError("SECRET_KEY must be set in production")
+    
+    def __init__(self):
+        # In production, ensure SECRET_KEY is set via environment variable
+        if not os.getenv('SECRET_KEY'):
+            raise ValueError("SECRET_KEY must be set in production")
+        super().__init__()
 
 
 config_by_name = {

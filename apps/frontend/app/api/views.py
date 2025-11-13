@@ -23,7 +23,10 @@ def index():
     try:
         api_url = get_api_url()
         response = requests.get(f'{api_url}/api/products', timeout=5)
-        products = response.json()
+        response.raise_for_status()  # Raise exception for 4xx/5xx status codes
+        data = response.json()
+        # Ensure products is a list
+        products = data if isinstance(data, list) else []
         backend_status = 'Connected ✓'
         status_class = ''
     except Exception as e:
