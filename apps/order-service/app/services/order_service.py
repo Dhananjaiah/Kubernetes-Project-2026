@@ -2,7 +2,7 @@
 Order service - business logic for order operations
 """
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict
 import requests
 
 from app.models.order import Order, OrderItem, OrderStatus
