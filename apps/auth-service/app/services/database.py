@@ -61,17 +61,31 @@ class DatabaseService:
         """Initialize database with tables and sample data"""
         try:
             with self.get_cursor() as cur:
-                # Create products table
-                cur.execute('''
-                    CREATE TABLE IF NOT EXISTS products (
-                        id SERIAL PRIMARY KEY,
-                        name VARCHAR(255) NOT NULL,
-                        description TEXT,
-                        price DECIMAL(10, 2) NOT NULL,
-                        stock INTEGER NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                # Check if products table exists first to avoid SERIAL sequence conflicts
+                cur.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'products'
                     )
-                ''')
+                """)
+                table_exists = cur.fetchone()['exists']
+                
+                if not table_exists:
+                    # Create products table
+                    cur.execute('''
+                        CREATE TABLE products (
+                            id SERIAL PRIMARY KEY,
+                            name VARCHAR(255) NOT NULL,
+                            description TEXT,
+                            price DECIMAL(10, 2) NOT NULL,
+                            stock INTEGER NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    ''')
+                    self.logger.info("Products table created")
+                else:
+                    self.logger.info("Products table already exists")
                 
                 # Check if products exist
                 cur.execute('SELECT COUNT(*) FROM products')

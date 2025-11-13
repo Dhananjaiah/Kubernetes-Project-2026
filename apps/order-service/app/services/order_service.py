@@ -22,32 +22,60 @@ class OrderService:
         """Initialize order tables"""
         try:
             with self.db.get_cursor() as cur:
-                # Orders table
-                cur.execute('''
-                    CREATE TABLE IF NOT EXISTS orders (
-                        id SERIAL PRIMARY KEY,
-                        user_id INTEGER,
-                        status VARCHAR(20) DEFAULT 'pending',
-                        total_amount DECIMAL(10, 2) NOT NULL,
-                        shipping_address TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                # Check if orders table exists
+                cur.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'orders'
                     )
-                ''')
+                """)
+                orders_exists = cur.fetchone()['exists']
                 
-                # Order items table
-                cur.execute('''
-                    CREATE TABLE IF NOT EXISTS order_items (
-                        id SERIAL PRIMARY KEY,
-                        order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
-                        product_id INTEGER NOT NULL,
-                        product_name VARCHAR(255),
-                        quantity INTEGER NOT NULL,
-                        price DECIMAL(10, 2) NOT NULL
+                if not orders_exists:
+                    # Orders table
+                    cur.execute('''
+                        CREATE TABLE orders (
+                            id SERIAL PRIMARY KEY,
+                            user_id INTEGER,
+                            status VARCHAR(20) DEFAULT 'pending',
+                            total_amount DECIMAL(10, 2) NOT NULL,
+                            shipping_address TEXT,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    ''')
+                    self.logger.info("Orders table created")
+                else:
+                    self.logger.info("Orders table already exists")
+                
+                # Check if order_items table exists
+                cur.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'order_items'
                     )
-                ''')
+                """)
+                order_items_exists = cur.fetchone()['exists']
                 
-                # Indexes
+                if not order_items_exists:
+                    # Order items table
+                    cur.execute('''
+                        CREATE TABLE order_items (
+                            id SERIAL PRIMARY KEY,
+                            order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+                            product_id INTEGER NOT NULL,
+                            product_name VARCHAR(255),
+                            quantity INTEGER NOT NULL,
+                            price DECIMAL(10, 2) NOT NULL
+                        )
+                    ''')
+                    self.logger.info("Order items table created")
+                else:
+                    self.logger.info("Order items table already exists")
+                
+                # Indexes (these are idempotent with IF NOT EXISTS)
                 cur.execute('CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)')
                 cur.execute('CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)')
                 cur.execute('CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)')
