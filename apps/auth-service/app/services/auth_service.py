@@ -20,19 +20,33 @@ class AuthService:
         """Initialize users table"""
         try:
             with self.db.get_cursor() as cur:
-                cur.execute('''
-                    CREATE TABLE IF NOT EXISTS users (
-                        id SERIAL PRIMARY KEY,
-                        username VARCHAR(50) UNIQUE NOT NULL,
-                        email VARCHAR(255) UNIQUE NOT NULL,
-                        password_hash VARCHAR(255) NOT NULL,
-                        full_name VARCHAR(255),
-                        is_active BOOLEAN DEFAULT TRUE,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                # Check if table exists first to avoid SERIAL sequence conflicts
+                cur.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'users'
                     )
-                ''')
+                """)
+                table_exists = cur.fetchone()['exists']
                 
-                # Create indexes
+                if not table_exists:
+                    cur.execute('''
+                        CREATE TABLE users (
+                            id SERIAL PRIMARY KEY,
+                            username VARCHAR(50) UNIQUE NOT NULL,
+                            email VARCHAR(255) UNIQUE NOT NULL,
+                            password_hash VARCHAR(255) NOT NULL,
+                            full_name VARCHAR(255),
+                            is_active BOOLEAN DEFAULT TRUE,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    ''')
+                    self.logger.info("Users table created")
+                else:
+                    self.logger.info("Users table already exists")
+                
+                # Create indexes (these are idempotent with IF NOT EXISTS)
                 cur.execute('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)')
                 cur.execute('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)')
                 

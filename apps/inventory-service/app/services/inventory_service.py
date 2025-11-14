@@ -19,18 +19,33 @@ class InventoryService:
         """Initialize inventory table"""
         try:
             with self.db.get_cursor() as cur:
-                cur.execute('''
-                    CREATE TABLE IF NOT EXISTS inventory (
-                        id SERIAL PRIMARY KEY,
-                        product_id INTEGER UNIQUE NOT NULL,
-                        quantity INTEGER NOT NULL DEFAULT 0,
-                        reserved INTEGER NOT NULL DEFAULT 0,
-                        available INTEGER GENERATED ALWAYS AS (quantity - reserved) STORED,
-                        warehouse_location VARCHAR(100),
-                        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                # Check if table exists first to avoid SERIAL sequence conflicts
+                cur.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'inventory'
                     )
-                ''')
+                """)
+                table_exists = cur.fetchone()['exists']
                 
+                if not table_exists:
+                    cur.execute('''
+                        CREATE TABLE inventory (
+                            id SERIAL PRIMARY KEY,
+                            product_id INTEGER UNIQUE NOT NULL,
+                            quantity INTEGER NOT NULL DEFAULT 0,
+                            reserved INTEGER NOT NULL DEFAULT 0,
+                            available INTEGER GENERATED ALWAYS AS (quantity - reserved) STORED,
+                            warehouse_location VARCHAR(100),
+                            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    ''')
+                    self.logger.info("Inventory table created")
+                else:
+                    self.logger.info("Inventory table already exists")
+                
+                # Create index (idempotent with IF NOT EXISTS)
                 cur.execute('CREATE INDEX IF NOT EXISTS idx_inventory_product_id ON inventory(product_id)')
                 
                 self.logger.info("Inventory table initialized")
